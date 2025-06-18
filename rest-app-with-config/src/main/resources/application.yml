@@ -1,0 +1,3 @@
+micronaut:
+  application:
+    name: rest-app-with-config
