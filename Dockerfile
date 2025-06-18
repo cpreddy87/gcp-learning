@@ -22,7 +22,7 @@ COPY src/ src/
 # If using Gradle:
 # The Micronaut `shadowJar` task (provided by `io.micronaut.application` plugin)
 # creates the executable JAR, typically in build/libs/
-RUN ./gradlew clean shadowJar
+RUN ./gradlew clean shadowJar --stacktrace
 
 # If using Maven:
 # RUN mvn clean package -DskipTests
