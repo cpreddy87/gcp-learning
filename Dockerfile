@@ -31,7 +31,7 @@ RUN ./gradlew clean shadowJar
 
 # Stage 2: Create the final lean runtime image
 # Use a smaller JRE image for the runtime environment
-FROM openjdk:17-jre-slim
+FROM openjdk:17-slim-buster
 
 # Set the working directory for the application
 WORKDIR /app
