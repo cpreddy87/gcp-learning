@@ -13,7 +13,7 @@ COPY build.gradle .
 COPY settings.gradle .
 # Copy Micronaut-specific build files if any (e.g., src/main/resources/application.yml)
 # This helps with caching if application.yml changes less frequently than source code
-COPY src/main/resources/application.yml src/main/resources/
+COPY src/main/resources/application.properties src/main/resources/
 
 # Copy your Micronaut application source code
 COPY src/ src/
