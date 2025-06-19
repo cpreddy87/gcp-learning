@@ -1,6 +1,8 @@
 # .github/workflows/create-sit-pr.yml
 
-name: Promote Dev to SIT PR # Add this line at the very top of your file
+# .github/workflows/create-sit-pr.yml
+
+name: Promote Dev to SIT PR
 
 on:
   push:
@@ -11,18 +13,55 @@ jobs:
   create-pull-request:
     runs-on: ubuntu-latest
     # Permissions for the GITHUB_TOKEN
+    # 'contents: write' is crucial for creating and pushing the new 'sit' branch
     permissions:
-      contents: write # Needed for actions/checkout to sometimes commit if auto-merge is used later
+      contents: write
       pull-requests: write # Essential for creating and managing pull requests
     steps:
       - name: Checkout repository code
-        uses: actions/checkout@v4 # Uses the latest stable checkout action
+        uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }} # The default GitHub token for workflow actions
+          # This token is necessary for 'actions/checkout' to pull code
+          # and also implicitly for subsequent Git commands if you don't explicitly pass it to 'run'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Setup Git User
         run: |
+          # Configure Git user for any commits made directly by 'run' commands
           git config user.name "GitHub Actions Bot"
           git config user.email "github-actions-bot@users.noreply.github.com"
+
+      - name: Check and Create 'sit' Branch if it doesn't exist
+        id: create_sit_branch # Assign an ID to this step to access its outputs if needed
+        run: |
+          echo "Attempting to create 'sit' branch if it does not exist..."
+          # Fetch all remote branches to ensure we have the most up-to-date information
+          git fetch origin
+
+          # Check if the 'sit' branch exists on the remote (origin)
+          # 'git rev-parse --verify origin/sit' returns 0 if it exists, non-zero otherwise
+          # '&>/dev/null' redirects both stdout and stderr to null, suppressing output
+          if ! git rev-parse --verify origin/sit &>/dev/null; then
+            echo "::notice title=Branch Creation::'sit' branch does not exist on origin. Creating it from 'dev'..."
+
+            # Create 'sit' branch locally, based on the current state of 'origin/dev'
+            # This ensures 'sit' starts with the content of 'dev'
+            git branch sit origin/dev
+
+            # Push the newly created local 'sit' branch to the remote 'origin'
+            # This makes 'sit' a remote branch available on GitHub
+            git push origin sit
+            
+            echo "::notice title=Branch Created::'sit' branch created successfully."
+            echo "sit_branch_created=true" >> $GITHUB_OUTPUT # Set an output variable
+          else
+            echo "::info title=Branch Exists::'sit' branch already exists on origin. No new branch created."
+            echo "sit_branch_created=false" >> $GITHUB_OUTPUT # Set an output variable
+          fi
+        env:
+          # Pass GITHUB_TOKEN as an environment variable for Git commands to authenticate
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create or Update Pull Request
         id: create_pr
         uses: peter-evans/create-pull-request@v6 # Using a widely used action for PR creation
@@ -34,8 +73,8 @@ jobs:
             This is an automated Pull Request to promote changes from the `dev` branch to the `sit` branch.
             Please review the changes and ensure all tests passed in the corresponding CI build on `dev`.
             *Triggered by push to `dev` branch: `${{ github.event.after }}`*
-            *View CI build for this commit: [Link to Cloud Build History for `${{ github.event.after }}`](https://console.cloud.google.com/cloud-build/builds;projectId=${{ github.repository_owner }}/builds/${{ github.run_id }})* # Placeholder, you'll need to adapt this link
-          base: sit # The target branch for the PR
+            *View CI build for this commit: [Link to Cloud Build History for `${{ github.event.after }}`](https://console.cloud.google.com/cloud-build/builds;projectId=YOUR_GCP_PROJECT_ID/builds/${{ github.run_id }})* # IMPORTANT: Replace YOUR_GCP_PROJECT_ID with your actual Google Cloud Project ID
+          base: sit # The target branch for the PR (ensured to exist by the previous step)
           head: dev # The source branch for the PR
           branch: "chore/auto-pr-dev-to-sit" # Temporary branch created by the action if needed
           labels: "automated, sit-deployment" # Add labels for easier filtering
@@ -43,10 +82,12 @@ jobs:
           # assignees: "your-dev" # Optional: add assignees
           # draft: true # Optional: create as a draft PR initially
           delete-branch: false # Keep the branch for now, if it was created by the action
+
       - name: PR Created/Updated Info
         if: steps.create_pr.outputs.pull-request-number != ''
         run: |
           echo "Pull Request #${{ steps.create_pr.outputs.pull-request-number }} created/updated at: ${{ steps.create_pr.outputs.pull-request-url }}"
+
       - name: No new changes
         if: steps.create_pr.outputs.pull-request-number == ''
         run: echo "No new changes from dev to sit. No PR created or updated."
