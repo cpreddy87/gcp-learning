@@ -1,0 +1,57 @@
+# .github/workflows/create-sit-pr.yml
+
+name: Create PR: dev to sit
+
+on:
+  push:
+    branches:
+      - dev # Trigger this workflow whenever code is pushed to the 'dev' branch
+
+jobs:
+  create-pull-request:
+    runs-on: ubuntu-latest
+
+    # Permissions for the GITHUB_TOKEN
+    permissions:
+      contents: write # Needed for actions/checkout to sometimes commit if auto-merge is used later
+      pull-requests: write # Essential for creating and managing pull requests
+
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4 # Uses the latest stable checkout action
+
+      - name: Setup Git User
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "github-actions-bot@users.noreply.github.com"
+
+      - name: Create or Update Pull Request
+        id: create_pr
+        uses: peter-evans/create-pull-request@v6 # Using a widely used action for PR creation
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }} # The default GitHub token for workflow actions
+          commit-message: "Merge changes from dev into sit" # Commit message for the PR's merge commit
+          title: "Promote dev to SIT - ${{ github.ref_name }}" # Title of the Pull Request
+          body: |
+            This is an automated Pull Request to promote changes from the `dev` branch to the `sit` branch.
+
+            Please review the changes and ensure all tests passed in the corresponding CI build on `dev`.
+            *Triggered by push to `dev` branch: `${{ github.event.after }}`*
+            *View CI build for this commit: [Link to Cloud Build History for `${{ github.event.after }}`](https://console.cloud.google.com/cloud-build/builds;projectId=${{ github.repository_owner }}/builds/${{ github.run_id }})* # Placeholder, you'll need to adapt this link
+          base: sit # The target branch for the PR
+          head: dev # The source branch for the PR
+          branch: "chore/auto-pr-dev-to-sit" # Temporary branch created by the action if needed
+          labels: "automated, sit-deployment" # Add labels for easier filtering
+          # reviewers: "your-team-lead, another-dev" # Optional: add specific reviewers
+          # assignees: "your-dev" # Optional: add assignees
+          # draft: true # Optional: create as a draft PR initially
+          delete-branch: false # Keep the branch for now, if it was created by the action
+
+      - name: PR Created/Updated Info
+        if: steps.create_pr.outputs.pull-request-number != ''
+        run: |
+          echo "Pull Request #${{ steps.create_pr.outputs.pull-request-number }} created/updated at: ${{ steps.create_pr.outputs.pull-request-url }}"
+        
+      - name: No new changes
+        if: steps.create_pr.outputs.pull-request-number == ''
+        run: echo "No new changes from dev to sit. No PR created or updated."
