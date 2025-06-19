@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v4 # Uses the latest stable checkout action
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Git User
         run: |
           git config user.name "GitHub Actions Bot"
