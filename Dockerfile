@@ -22,7 +22,7 @@ COPY src/ src/
 # If using Gradle:
 # The Micronaut `shadowJar` task (provided by `io.micronaut.application` plugin)
 # creates the executable JAR, typically in build/libs/
-RUN ./gradlew clean shadowJar
+RUN ./gradlew clean shadowJar --stacktrace
 
 # If using Maven:
 # RUN mvn clean package -DskipTests
@@ -31,6 +31,7 @@ RUN ./gradlew clean shadowJar
 
 # Stage 2: Create the final lean runtime image
 # Use a smaller JRE image for the runtime environment
+
 FROM openjdk:17-slim-buster
 
 # Set the working directory for the application
